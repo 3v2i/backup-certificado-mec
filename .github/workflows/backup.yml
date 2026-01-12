@@ -1,0 +1,106 @@
+name: MEC documents backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Force Cloudflare DNS
+        run: |
+          sudo rm -f /etc/resolv.conf
+          echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf
+          echo "nameserver 1.0.0.1" | sudo tee -a /etc/resolv.conf
+
+      - name: Prepare workspace
+        run: |
+          mkdir work
+          echo "DATE=$(date +%F)" >> $GITHUB_ENV
+          echo "TS=$(date -u +%FT%TZ)" >> $GITHUB_ENV
+
+      - name: Download HTML and PDF
+        run: |
+          set -e
+
+          # ---- Sources -------------------------------------------------------
+          HTML_URL="https://datos.mec.gov.py/doc/registro_nacional_egresado_titulo/648334"
+          PDF_URL="https://intramec.mec.gov.py/sies/system/documentos_resoluciones/datas/000/235/010/original/resolucion-132730-firmado.pdf"
+
+          # ---- Filenames -----------------------------------------------------
+          HTML_SNAPSHOT="work/registro-648334-${DATE}.html"
+          HTML_LATEST="work/registro-648334.html"
+          PDF_FILE="work/resolucion-132730-firmado.pdf"
+
+          # ---- Download ------------------------------------------------------
+          curl -fsSL "$HTML_URL" -o "$HTML_SNAPSHOT"
+          cp "$HTML_SNAPSHOT" "$HTML_LATEST"
+
+          curl -fsSL "$PDF_URL" -o "$PDF_FILE"
+
+          # ---- Hashes --------------------------------------------------------
+          HTML_SHA=$(sha256sum "$HTML_SNAPSHOT" | awk '{print $1}')
+          PDF_SHA=$(sha256sum "$PDF_FILE" | awk '{print $1}')
+
+          # ---- Manifest ------------------------------------------------------
+          jq -n \
+            --arg fetched_at "$TS" \
+            --arg html_url "$HTML_URL" \
+            --arg html_snapshot "$(basename "$HTML_SNAPSHOT")" \
+            --arg html_latest "$(basename "$HTML_LATEST")" \
+            --arg html_sha "$HTML_SHA" \
+            --arg pdf_url "$PDF_URL" \
+            --arg pdf_file "$(basename "$PDF_FILE")" \
+            --arg pdf_sha "$PDF_SHA" \
+            '{
+              fetched_at: $fetched_at,
+              artifacts: [
+                {
+                  type: "html",
+                  url: $html_url,
+                  snapshot: $html_snapshot,
+                  latest: $html_latest,
+                  sha256: $html_sha
+                },
+                {
+                  type: "pdf",
+                  url: $pdf_url,
+                  file: $pdf_file,
+                  sha256: $pdf_sha
+                }
+              ]
+            }' > work/manifest.json
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          printf "%s\n" "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+      - name: Sign manifest
+        run: |
+          gpg --batch --yes --armor --detach-sign work/manifest.json
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mec-backup-${{ env.DATE }}
+          name: MEC Backup ${{ env.DATE }}
+          body: |
+            Backup de documentos públicos del MEC.
+
+            - HTML snapshot fechado (inmutable)
+            - HTML alias `latest.html`
+            - PDF original
+            - Hash SHA-256 por artefacto
+            - Manifest firmado con GPG
+
+            Fecha UTC: ${{ env.TS }}
+          files: |
+            work/*
