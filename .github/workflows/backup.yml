@@ -39,10 +39,10 @@ jobs:
           PDF_FILE="work/resolucion-132730-firmado.pdf"
 
           # ---- Download ------------------------------------------------------
-          curl -fsSL "$HTML_URL" -o "$HTML_SNAPSHOT"
+          curl -fsSLk "$HTML_URL" -o "$HTML_SNAPSHOT"
           cp "$HTML_SNAPSHOT" "$HTML_LATEST"
 
-          curl -fsSL -k "$PDF_URL" -o "$PDF_FILE"
+          curl -fsSLk "$PDF_URL" -o "$PDF_FILE"
 
           # ---- Hashes --------------------------------------------------------
           HTML_SHA=$(sha256sum "$HTML_SNAPSHOT" | awk '{print $1}')
