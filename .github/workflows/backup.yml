@@ -31,7 +31,7 @@ jobs:
 
           # ---- Sources -------------------------------------------------------
           HTML_URL="https://datos.mec.gov.py/doc/registro_nacional_egresado_titulo/648334"
-          PDF_URL="https://intramec.mec.gov.py/sies/system/documentos_resoluciones/datas/000/235/010/original/resolucion-132730-firmado.pdf"
+          PDF_URL="https://intramec.mec.gov.py/sies//system/documentos_resoluciones/datas/000/235/010/original/resolucion-132730-firmado.pdf"
 
           # ---- Filenames -----------------------------------------------------
           HTML_SNAPSHOT="work/registro-648334-${DATE}.html"
