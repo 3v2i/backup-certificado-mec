@@ -42,7 +42,7 @@ jobs:
           curl -fsSL "$HTML_URL" -o "$HTML_SNAPSHOT"
           cp "$HTML_SNAPSHOT" "$HTML_LATEST"
 
-          curl -fsSL "$PDF_URL" -o "$PDF_FILE"
+          curl -fsSL -k "$PDF_URL" -o "$PDF_FILE"
 
           # ---- Hashes --------------------------------------------------------
           HTML_SHA=$(sha256sum "$HTML_SNAPSHOT" | awk '{print $1}')
